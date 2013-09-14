@@ -1,9 +1,9 @@
-// Example : random forest (tree) learning
-// Based on code example by Toby Breckon, toby.breckon@cranfield.ac.uk
-// Copyright (c) 2011 School of Engineering, Cranfield University
-// License : LGPL - http://www.gnu.org/licenses/lgpl.html
-
+// first we import the OpenCV library for Processing. We need this to setup 
+// the correct system library paths
 import gab.opencv.*;
+
+// Import all the classes that we need from the OpenCV Java library. A reference
+// for these classes can be found here: http://docs.opencv.org/java/
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
@@ -11,11 +11,6 @@ import org.opencv.core.Scalar;
 import org.opencv.core.TermCriteria;
 import org.opencv.ml.CvRTParams;
 import org.opencv.ml.CvRTrees;
-//import org.opencv.core.MatOfRect;
-//import org.opencv.core.MatOfPoint;
-//import org.opencv.core.MatOfPoint2f;
-//import org.opencv.core.MatOfInt;
-//import org.opencv.core.MatOfFloat;
 
 int NUMBER_OF_TRAINING_SAMPLES  = 3823;
 int ATTRIBUTES_PER_SAMPLE       = 64;

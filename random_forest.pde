@@ -12,15 +12,8 @@ import org.opencv.core.TermCriteria;
 import org.opencv.ml.CvRTParams;
 import org.opencv.ml.CvRTrees;
 
-// set up some common variables that we use throughout the code.
-// this tells the code how many samples we have 
-int NUMBER_OF_TRAINING_SAMPLES  = 3823;
-int ATTRIBUTES_PER_SAMPLE       = 64;
-int NUMBER_OF_TESTING_SAMPLES   = 1797;
+// we use this variable to know how many different answers we have. In our case, we have 10 number, 0-9.
 int NUMBER_OF_CLASSES = 10;
-
-String TEST_FILE = "testing.csv";
-String TRAIN_FILE = "training.csv";
 
 void setup()
 {
@@ -33,7 +26,7 @@ void setup()
 
   // now let's train the algorithm. First we load our training data into a Processing Table objects. Each row in this Table 
   // object will hold the traits of a specific handwritten number (column 0 - 63) and the answer to what number it is (column 64)
-  Table trainingData = loadTable(TRAIN_FILE);
+  Table trainingData = loadTable("training.csv");
 
   // however, OpenCV expects us to pass in the traits and the answers seperatly, using so-called Mat objects. You can think of a
   // Mat object as being a Table object, but with more functionality. In our case it serves the exact same purpose: saving rows
@@ -77,7 +70,7 @@ void setup()
   // we need to tell our train function that we are dealing with a classification problem (we have a number of known
   // answers and it should "classify" a given prediction to one of them). To do this, we set the last element (the position)
   // of the answer) in the varType MAt to the value of CV_VAR_CATEGORICAL, which is 1
-  varType.put(ATTRIBUTES_PER_SAMPLE, 0, 1); // 1 = CV_VAR_CATEGORICAL;
+  varType.put(trainingData.getColumnCount() - 1, 0, 1); // 1 = CV_VAR_CATEGORICAL;
 
   // The last parameter to our training function is a CvRTParams object, that allows us to set specific parameters
   // for the training algorithm. It's hard to know what to set the following parameters to, which is why it's good
@@ -141,50 +134,99 @@ void setup()
 
 
   /* Predict with the algorithm
-  ---------------------------------------------------------------------------- 
+  ---------------------------------------------------------------------------- */
 
-  //Mat testing_traits            = new Mat(NUMBER_OF_TESTING_SAMPLES, ATTRIBUTES_PER_SAMPLE, CvType.CV_32FC1);
-  //Mat testing_answers = new Mat(NUMBER_OF_TESTING_SAMPLES, 1, CvType.CV_32FC1);
+  // now that we've trained the algorithm, we run through every line in our testing data, get a prediction, and
+  // compare it with the correct answer. This will give us an idea of how good our algorithm is.
+  // The first steps are basically the same as during the training. We could do put this functionality in a function
+  // and reuse for both the training and testing data, but for now we'll just do it here:
+  
+  // First Load the CSV file into a Table object
+  Table testingData = loadTable("testing.csv");
 
-  // perform classifier testing and report results
-  Mat test_sample;
-  int correct_class = 0;
-  int wrong_class = 0;
-  int[] false_positives = {0,0,0,0,0,0,0,0,0,0};
+  // Then split it up into 2 Mat objects, one holding the traits, the other holding the answers
+  
+  Mat testingTraits = new Mat(
+    testingData.getRowCount(), 
+    testingData.getColumnCount() - 1,
+    CvType.CV_32FC1
+  );
 
-  for (int tsample = 0; tsample < NUMBER_OF_TESTING_SAMPLES; tsample++)
+  Mat testingAnswers = new Mat(
+    testingData.getRowCount(),
+    1,
+    CvType.CV_32FC1
+  );
+
+  for(int row = 0; row < testingData.getRowCount(); row++)
   {
-    // extract a row from the testing matrix
-    test_sample = testing_traits.row(tsample);
-    
-    // run random forest prediction
-    double result = forest.predict(test_sample, new Mat());
-
-    println("Testing sample " + tsample + " class result " + (int) result);
-    
-    // if the prediction and the (true) testing classification are the same
-    // (N.B. openCV uses a floating point decision tree implementation!)
-
-    if(Math.abs(result - testing_answers.get(tsample, 0)[0]) >= 1.19209290e-7F) // this should be FLT_EPSILON BUT CAN't GET IT
+    for(int col = 0; col < testingData.getColumnCount(); col++)
     {
-      // if they differ more than floating point error => wrong class
-      wrong_class++;
-      false_positives[(int) result]++;
-    }
-    else
-    {
-        // otherwise correct
-        correct_class++;
+      if (col < testingData.getColumnCount() - 1)   testingTraits.put(row, col, testingData.getInt(row, col));
+      else                                          testingAnswers.put(row, 0, testingData.getInt(row, col));
     }
   }
 
-  println("Results on the testing database:");
-  println("Correct classification: " + correct_class + ", " + (double) correct_class*100/NUMBER_OF_TESTING_SAMPLES + " percent?");
-  println("Wrong classification: " + wrong_class + ", " + (double) wrong_class*100/NUMBER_OF_TESTING_SAMPLES + " percent?");
+  
+  // Now let's set up some variables that we're going to use for our prediction.
+  // First we create two variables that we'll use for counting correct/wrong answers
+  int correctAnswers = 0;
+  int wrongAnswers = 0;
 
-  for (int i = 0; i < NUMBER_OF_CLASSES; i++)
+  // Then we'll create an array with a length of the number of traits, all set to 0.
+  // Every time we get a wrong answer, we will record what trait it got wrong. This
+  // is great if we want to know where our algorithm and training data falls short
+  int[] wrongAnswersByNumber = new int[NUMBER_OF_CLASSES];
+
+  // We want to make a prediction for every row in the testing data, so let's loop
+  // over every row
+  for(int i = 0; i < testingData.getRowCount(); i++)
   {
-    println("class (digit " + i + ") false positives " + 
-      false_positives[i] + ", " + (double) false_positives[i]*100/NUMBER_OF_TESTING_SAMPLES + " percent?");
-  }*/
+    // Let's get just this row of traits
+    Mat testRow = testingTraits.row(i);
+    
+    // Pass the row into the prediction algorithm, getting back a prediction number
+    double prediction = forest.predict(testRow);
+
+    // grab the correct answer from the Mat, which is the first index in the matrix
+    double answer = testingAnswers.get(i, 0)[0];
+
+    // Let's print the prediction so we can see it. As our prediction will always be a double,
+    // we convert it to an int to get the rounded number.
+    println("Testing sample #" + i + " was predicted to be the number " + (int) prediction);
+    
+    // If this was the correct answer. NB: Here we just check if the numbers are the same. For other
+    // scenarios you might want to do something a bit more tolerant, like: abs(prediction - answer) < 1.2
+    // as 1.2 is basically a mesaurement for a floating point error.
+    if((int)prediction == (int)answer)
+    {
+      // increment the correct answers counter
+      correctAnswers++;
+    }
+    // else this was the wrong answer
+    else
+    {
+      // increment the wrong answers counter
+      wrongAnswers++;
+
+      // increment the wrong answers for that specific number
+      // note that this will increment a wrong answer for the prediction number, not
+      // the correct answer. This will get us a list of false positives.
+      wrongAnswersByNumber[(int) prediction]++;  
+    }
+  }
+
+  println("**************************************************");
+  println("Overall Results on the testing database:");
+
+  // loop through all the false positives and do some math on that
+  for (int i = 0; i < wrongAnswersByNumber.length; i++)
+  {
+    println("The number " + i + " had " + wrongAnswersByNumber[i] + " (" + (double) wrongAnswersByNumber[i]*100/testingData.getRowCount() + " percent)" + " false positives ");
+  }
+  
+  // just do some math on the correct/wrong answer counters
+  println("Overall correct answers: " + correctAnswers + " (" + (double) correctAnswers*100/testingData.getRowCount() + "percent)");
+  println("Overall Wrong answers: " + wrongAnswers + " (" + (double) wrongAnswers*100/testingData.getRowCount() + " percent)");
+  println("**************************************************");
 }

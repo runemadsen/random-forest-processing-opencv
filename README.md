@@ -6,7 +6,7 @@ This repository has a bunch of examples that show how to implement the machine l
 Examples
 --------
 
-Each of the examples have a README that describes the functionality of the example. All of the examples are also heavily annotated.
+Each of the examples have a README that describes the functionality of the example. All of the example source codes are also heavily annotated.
 
 
 What is Random Forest?

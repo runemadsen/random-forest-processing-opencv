@@ -12,10 +12,13 @@ import org.opencv.core.TermCriteria;
 import org.opencv.ml.CvRTParams;
 import org.opencv.ml.CvRTrees;
 
+// set up some common variables that we use throughout the code.
+// this tells the code how many samples we have 
 int NUMBER_OF_TRAINING_SAMPLES  = 3823;
 int ATTRIBUTES_PER_SAMPLE       = 64;
 int NUMBER_OF_TESTING_SAMPLES   = 1797;
 int NUMBER_OF_CLASSES = 10;
+
 String TEST_FILE = "testing.csv";
 String TRAIN_FILE = "training.csv";
 
@@ -23,347 +26,165 @@ void setup()
 {
   // we use Greg's nice little library to load the correct dylibs at runtime
   // we never actually use it
-  OpenCV opencv;
-  opencv = new OpenCV(this, "test.jpg");
+  OpenCV opencv = new OpenCV(this, "test.jpg");
 
-  Mat training_data             = new Mat(NUMBER_OF_TRAINING_SAMPLES, ATTRIBUTES_PER_SAMPLE, CvType.CV_32FC1);
-  Mat training_classifications  = new Mat(NUMBER_OF_TRAINING_SAMPLES, 1, CvType.CV_32FC1);
+  /* Train the algorithm
+  ---------------------------------------------------------------------------- */
 
-  Mat testing_data            = new Mat(NUMBER_OF_TESTING_SAMPLES, ATTRIBUTES_PER_SAMPLE, CvType.CV_32FC1);
-  Mat testing_classifications = new Mat(NUMBER_OF_TESTING_SAMPLES, 1, CvType.CV_32FC1);
+  // now let's train the algorithm. First we load our training data into a Processing Table objects. Each row in this Table 
+  // object will hold the traits of a specific handwritten number (column 0 - 63) and the answer to what number it is (column 64)
+  Table trainingData = loadTable(TRAIN_FILE);
 
-  Mat var_type = new Mat(ATTRIBUTES_PER_SAMPLE + 1, 1, CvType.CV_8U );
-  var_type.setTo(new Scalar(0)); // all inputs are numerical
-  //var_type.setTo(Scalar(CV_VAR_NUMERICAL) ); // all inputs are numerical
+  // however, OpenCV expects us to pass in the traits and the answers seperatly, using so-called Mat objects. You can think of a
+  // Mat object as being a Table object, but with more functionality. In our case it serves the exact same purpose: saving rows
+  // of comma-separated data. let's split our training data, so we have the traits (column 0 - 63) in one object, and the answers (column 64) 
+  // in another,
+  // passing in how many rows and columns we want in each object.
+  Mat trainingTraits = new Mat(
+    trainingData.getRowCount(),         // we need as many rows as we have rows in the training table
+    trainingData.getColumnCount() - 1,  // we need one less column, as we're only interested in the traits
+    CvType.CV_32FC1                     // this tells opencv that we're saving numbers (floats) in the Mat
+  );
 
-  // this is a classification problem (i.e. predict a discrete number of class
-  // outputs) so reset the last (+1) output var_type element to CV_VAR_CATEGORICAL
+  // now let's do the same, just pulling our the answers.
+  Mat trainingAnswers = new Mat(
+    trainingData.getRowCount(),         // we also need as many rows as we have rows in the training table here
+    1,                                  // we're only saving one number, the answer, so only use one column
+    CvType.CV_32FC1                     // this tells opencv that we're saving numbers (floats) in the Mat
+  );
 
-  //var_type.at<uchar>(ATTRIBUTES_PER_SAMPLE, 0) = CV_VAR_CATEGORICAL;
-  var_type.put(ATTRIBUTES_PER_SAMPLE, 0, 1);
-
-  double result; // value returned from a prediction
-
-  // load training and testing data sets
-  if(read_data_from_csv(TRAIN_FILE, training_data, training_classifications, NUMBER_OF_TRAINING_SAMPLES) == 1 && read_data_from_csv(TEST_FILE, testing_data, testing_classifications, NUMBER_OF_TESTING_SAMPLES) == 1)
+  // now we need to actually fill the data from the Table into the to Mat objects. We do this by looping over the 
+  // rows and the columns of the Table object, assigning each data point to the correct Mat object.
+  // so let's loop through every row in the table
+  for(int row = 0; row < trainingData.getRowCount(); row++)
   {
-    println("yeah baby. Files loaded. Ready to go");
+    // and for each row, let's loop through each column
+    for(int col = 0; col < trainingData.getColumnCount(); col++)
+    {
+      // if this is not the last column, it's a trait, so put it in the traits Mat object
+      if (col < trainingData.getColumnCount() - 1)   trainingTraits.put(row, col, trainingData.getInt(row, col));
+      // if it's the last column, it's an answer, so put it in the answers Mat object
+      else                                           trainingAnswers.put(row, 0, trainingData.getInt(row, col));
+    }
+  }
 
-    float[] priors = {1,1,1,1,1,1,1,1,1,1};  // weights of each classification for classes
-                                              //// (all equal as equal samples of each digit)
+  // we need to tell the algorithm what variable types it's going to get. We do this by passing in a 
+  // MAT object with the same number of columns as our training data, set to CV_VAR_NUMERICAL, which is 0
+  // NB: This still seems cryptic to me
+  Mat varType = new Mat(trainingData.getColumnCount(), 1, CvType.CV_8U );
+  varType.setTo(new Scalar(0)); // 0 = CV_VAR_NUMERICAL.
+
+  // we need to tell our train function that we are dealing with a classification problem (we have a number of known
+  // answers and it should "classify" a given prediction to one of them). To do this, we set the last element (the position)
+  // of the answer) in the varType MAt to the value of CV_VAR_CATEGORICAL, which is 1
+  varType.put(ATTRIBUTES_PER_SAMPLE, 0, 1); // 1 = CV_VAR_CATEGORICAL;
+
+  // The last parameter to our training function is a CvRTParams object, that allows us to set specific parameters
+  // for the training algorithm. It's hard to know what to set the following parameters to, which is why it's good
+  // to run it against a training/testing set like this example does, and keep tweaking the params until you hit a 
+  // high percentage of correct predictions.
+  CvRTParams params = new CvRTParams();
+
+  // The maximum depth of the tree. Setting this low will likely not create enough nodes to give correct answers. Setting this
+  // too high is not a great thing either.
+  params.set_max_depth(25);
+
+  // random trees split nodes on randomly chosen data. This parameter tells the algorithm to at least have 5 samples before 
+  // splitting the tree
+  params.set_min_sample_count(5);
+
+  // our algorithm is predicting classifications, not regression, so set this to 0. This is possibly not needed at all.
+  params.set_regression_accuracy(0);
+
+  // If you have missing data, the algorithm can create fake "surrogates" to maintain the idea of a full data set, and still
+  // split leaf nodes on these values. We set this to false as our dataset it complete and not missing values.
+  params.set_use_surrogates(false);
+
+  // This is mostly speed optimization. Because the random forest algorithm is exponential, try to fit all samples into 
+  // this many categories.
+  params.set_max_categories(15);
+
+  // WE NEED PRIORS HERE?
+  // ???????priors, // the array of priors ????
+  //float[] priors = {1,1,1,1,1,1,1,1,1,1};  // weights of each classification for classes
+  //// (all equal as equal samples of each digit) if we wanted to, we could weight some higher than other
+  
+  // disable calculation of a variable importance.
+  params.set_calc_var_importance(false);
+
+  // when a node in the tre is split, use this number of random data points. Set to 0 to automatically set it 
+  // to the sqrt() of the number of traits.
+  params.set_nactive_vars(4);
+
+  // Tell the algorithm when to stop. We do this by passing a TermCriteria with specific settings to the param object
+  params.set_term_crit(
+    new TermCriteria(
+      // MAX_ITER tells the training algorithm to stop learning when reaching the maximum number of trees in the forest
+      // as specified below.
+      // EPS tells the algorithm to stop when reaching forest_accuray, as specific below.
+      // Plus them together, and it exits when reaching any of those two first.
+      TermCriteria.MAX_ITER + TermCriteria.EPS,
+      // The maximum number of trees in the forrest. Generally the higher the better, but this will also significantly 
+      // slow down the prediction time.
+      100,
+      // Forest acuracy.
+      0.0f
+    )
+  );
+
+  // Now finally create our main random forest object that we're going to train
+  CvRTrees forest = new CvRTrees();
+
+  // Now call the train function, passing in all of the objects we created above. The bigger the dataset, the longer it 
+  // takes to train. Tweaking the params like max_categories, max_depth, max_trees and forest_accuracy can also significantly cut down on time.
+  forest.train(trainingTraits, 1, trainingAnswers, new Mat(), new Mat(), varType, new Mat(), params); // 1 = CV_ROW_SAMPLE
+
+
+  /* Predict with the algorithm
+  ---------------------------------------------------------------------------- 
+
+  //Mat testing_traits            = new Mat(NUMBER_OF_TESTING_SAMPLES, ATTRIBUTES_PER_SAMPLE, CvType.CV_32FC1);
+  //Mat testing_answers = new Mat(NUMBER_OF_TESTING_SAMPLES, 1, CvType.CV_32FC1);
+
+  // perform classifier testing and report results
+  Mat test_sample;
+  int correct_class = 0;
+  int wrong_class = 0;
+  int[] false_positives = {0,0,0,0,0,0,0,0,0,0};
+
+  for (int tsample = 0; tsample < NUMBER_OF_TESTING_SAMPLES; tsample++)
+  {
+    // extract a row from the testing matrix
+    test_sample = testing_traits.row(tsample);
     
-    // THESE NEED TO BE FIXED TO PASS IN PRIORS.
-    // http://javacv.googlecode.com/git-history/ee6f17125b410b5d834e601053df955848eafc70/src/main/java/com/googlecode/javacv/cpp/opencv_ml.java
+    // run random forest prediction
+    double result = forest.predict(test_sample, new Mat());
 
-    CvRTParams params = new CvRTParams();
-    params.set_max_depth(25);
-    params.set_min_sample_count(5);
-    params.set_regression_accuracy(0); // possibly not needed
-    params.set_use_surrogates(false);
-    params.set_max_categories(15);
-      // ???????priors, // the array of priors ????
-    params.set_calc_var_importance(false);
-    params.set_nactive_vars(4);
-    params.set_term_crit(
-      new TermCriteria(
-        TermCriteria.MAX_ITER + TermCriteria.EPS, // type
-        100, // max number of trees in forest
-        0.0f // forest accuracy
-      )
-    );
+    println("Testing sample " + tsample + " class result " + (int) result);
+    
+    // if the prediction and the (true) testing classification are the same
+    // (N.B. openCV uses a floating point decision tree implementation!)
 
-    // train random forest classifier (using training data)
-    CvRTrees rtree = new CvRTrees();
-
-                              // Should be CV_ROW_SAMPLE but have no fucking clue how to grab it
-    rtree.train(training_data, 1, training_classifications, new Mat(), new Mat(), var_type, new Mat(), params);
-
-    // perform classifier testing and report results
-    Mat test_sample;
-    int correct_class = 0;
-    int wrong_class = 0;
-    int[] false_positives = {0,0,0,0,0,0,0,0,0,0};
-
-    for (int tsample = 0; tsample < NUMBER_OF_TESTING_SAMPLES; tsample++)
+    if(Math.abs(result - testing_answers.get(tsample, 0)[0]) >= 1.19209290e-7F) // this should be FLT_EPSILON BUT CAN't GET IT
     {
-      // extract a row from the testing matrix
-      test_sample = testing_data.row(tsample);
-      
-      // run random forest prediction
-      result = rtree.predict(test_sample, new Mat());
-
-      println("Testing sample " + tsample + " class result " + (int) result);
-      
-      // if the prediction and the (true) testing classification are the same
-      // (N.B. openCV uses a floating point decision tree implementation!)
-
-      if(Math.abs(result - testing_classifications.get(tsample, 0)[0]) >= 1.19209290e-7F) // this should be FLT_EPSILON BUT CAN't GET IT
-      {
-        // if they differ more than floating point error => wrong class
-        wrong_class++;
-        false_positives[(int) result]++;
-      }
-      else
-      {
-          // otherwise correct
-          correct_class++;
-      }
+      // if they differ more than floating point error => wrong class
+      wrong_class++;
+      false_positives[(int) result]++;
     }
-
-    println("Results on the testing database:");
-    println("Correct classification: " + correct_class + ", " + (double) correct_class*100/NUMBER_OF_TESTING_SAMPLES + " percent?");
-    println("Wrong classification: " + wrong_class + ", " + (double) wrong_class*100/NUMBER_OF_TESTING_SAMPLES + " percent?");
-
-    for (int i = 0; i < NUMBER_OF_CLASSES; i++)
+    else
     {
-      println("class (digit " + i + ") false positives " + 
-        false_positives[i] + ", " + (double) false_positives[i]*100/NUMBER_OF_TESTING_SAMPLES + " percent?");
+        // otherwise correct
+        correct_class++;
     }
   }
-}
 
-int read_data_from_csv(String filename, Mat data, Mat classes, int n_samples)
-{
-  // read all lines of filename
-  Table table = loadTable(filename);
+  println("Results on the testing database:");
+  println("Correct classification: " + correct_class + ", " + (double) correct_class*100/NUMBER_OF_TESTING_SAMPLES + " percent?");
+  println("Wrong classification: " + wrong_class + ", " + (double) wrong_class*100/NUMBER_OF_TESTING_SAMPLES + " percent?");
 
-  // for each row in the file
-  for(int row = 0; row < n_samples; row++)
+  for (int i = 0; i < NUMBER_OF_CLASSES; i++)
   {
-    // for each col in the row
-    for(int col = 0; col < (ATTRIBUTES_PER_SAMPLE + 1); col++)
-    {
-      if (col < 64)
-      {
-        // first 64 elements (0-63) in each row are the cols
-        //data.at(row, col) = table.getInt(row, col);
-        data.put(row, col, table.getInt(row, col));
-      }
-      else if (col == 64)
-      {
-        // col 65 is the class label {0 ... 9}
-        //classes.at(row, 0) = table.getInt(row, col);
-        classes.put(row, 0, table.getInt(row, col));
-      }
-    }
-  }
-
-  return 1;
+    println("class (digit " + i + ") false positives " + 
+      false_positives[i] + ", " + (double) false_positives[i]*100/NUMBER_OF_TESTING_SAMPLES + " percent?");
+  }*/
 }
-
-/*
-
-// Example : random forest (tree) learning
-// usage: prog training_data_file testing_data_file
-
-// For use with test / training datasets : opticaldigits_ex
-
-// Author : Toby Breckon, toby.breckon@cranfield.ac.uk
-
-// Copyright (c) 2011 School of Engineering, Cranfield University
-// License : LGPL - http://www.gnu.org/licenses/lgpl.html
-
-#include <cv.h>       // opencv general include file
-#include <ml.h>      // opencv machine learning include file
-
-using namespace cv; // OpenCV API is in the C++ "cv" namespace
-
-#include <stdio.h>
-
-// global definitions (for speed and ease of use)
-
-#define NUMBER_OF_TRAINING_SAMPLES 3823
-#define ATTRIBUTES_PER_SAMPLE 64
-#define NUMBER_OF_TESTING_SAMPLES 1797
-
-#define NUMBER_OF_CLASSES 10
-
-// N.B. classes are integer handwritten digits in range 0-9
-
-// loads the sample database from file (which is a CSV text file)
-
-int read_data_from_csv(const char* filename, Mat data, Mat classes,
-                       int n_samples )
-{
-    float tmp;
-
-    // if we can't read the input file then return 0
-    FILE* f = fopen( filename, "r" );
-    if( !f )
-    {
-        printf("ERROR: cannot read file %s\n",  filename);
-        return 0; // all not OK
-    }
-
-    // for each sample in the file
-    for(int line = 0; line < n_samples; line++)
-    {
-
-        // for each attribute on the line in the file
-
-        for(int attribute = 0; attribute < (ATTRIBUTES_PER_SAMPLE + 1); attribute++)
-        {
-            if (attribute < 64)
-            {
-
-                // first 64 elements (0-63) in each line are the attributes
-
-                fscanf(f, "%f,", &tmp);
-                data.at<float>(line, attribute) = tmp;
-                // printf("%f,", data.at<float>(line, attribute));
-
-            }
-            else if (attribute == 64)
-            {
-
-                // attribute 65 is the class label {0 ... 9}
-
-                fscanf(f, "%f,", &tmp);
-                classes.at<float>(line, 0) = tmp;
-                // printf("%f\n", classes.at<float>(line, 0));
-
-            }
-        }
-    }
-
-    fclose(f);
-
-    return 1; // all OK
-}
-
-int main( int argc, char** argv )
-{
-    // lets just check the version first
-
-    printf ("OpenCV version %s (%d.%d.%d)\n",
-            CV_VERSION,
-            CV_MAJOR_VERSION, CV_MINOR_VERSION, CV_SUBMINOR_VERSION);
-
-    // define training data storage matrices (one for attribute examples, one
-    // for classifications)
-
-    Mat training_data = Mat(NUMBER_OF_TRAINING_SAMPLES, ATTRIBUTES_PER_SAMPLE, CV_32FC1);
-    Mat training_classifications = Mat(NUMBER_OF_TRAINING_SAMPLES, 1, CV_32FC1);
-
-    //define testing data storage matrices
-
-    Mat testing_data = Mat(NUMBER_OF_TESTING_SAMPLES, ATTRIBUTES_PER_SAMPLE, CV_32FC1);
-    Mat testing_classifications = Mat(NUMBER_OF_TESTING_SAMPLES, 1, CV_32FC1);
-
-    // define all the attributes as numerical
-    // alternatives are CV_VAR_CATEGORICAL or CV_VAR_ORDERED(=CV_VAR_NUMERICAL)
-    // that can be assigned on a per attribute basis
-
-    Mat var_type = Mat(ATTRIBUTES_PER_SAMPLE + 1, 1, CV_8U );
-    var_type.setTo(Scalar(CV_VAR_NUMERICAL) ); // all inputs are numerical
-
-    // this is a classification problem (i.e. predict a discrete number of class
-    // outputs) so reset the last (+1) output var_type element to CV_VAR_CATEGORICAL
-
-    var_type.at<uchar>(ATTRIBUTES_PER_SAMPLE, 0) = CV_VAR_CATEGORICAL;
-
-    double result; // value returned from a prediction
-
-    // load training and testing data sets
-
-    if (read_data_from_csv(argv[1], training_data, training_classifications, NUMBER_OF_TRAINING_SAMPLES) &&
-            read_data_from_csv(argv[2], testing_data, testing_classifications, NUMBER_OF_TESTING_SAMPLES))
-    {
-        // define the parameters for training the random forest (trees)
-
-        float priors[] = {1,1,1,1,1,1,1,1,1,1};  // weights of each classification for classes
-        // (all equal as equal samples of each digit)
-
-        CvRTParams params = CvRTParams(25, // max depth
-                                       5, // min sample count
-                                       0, // regression accuracy: N/A here
-                                       false, // compute surrogate split, no missing data
-                                       15, // max number of categories (use sub-optimal algorithm for larger numbers)
-                                       priors, // the array of priors
-                                       false,  // calculate variable importance
-                                       4,       // number of variables randomly selected at node and used to find the best split(s).
-                                       100,   // max number of trees in the forest
-                                       0.01f,        // forrest accuracy
-                                       CV_TERMCRIT_ITER |  CV_TERMCRIT_EPS // termination cirteria
-                                      );
-
-        // train random forest classifier (using training data)
-
-        printf( "\nUsing training database: %s\n\n", argv[1]);
-        CvRTrees* rtree = new CvRTrees;
-
-        rtree->train(training_data, CV_ROW_SAMPLE, training_classifications,
-                     Mat(), Mat(), var_type, Mat(), params);
-
-        // perform classifier testing and report results
-
-        Mat test_sample;
-        int correct_class = 0;
-        int wrong_class = 0;
-        int false_positives [NUMBER_OF_CLASSES] = {0,0,0,0,0,0,0,0,0,0};
-
-        printf( "\nUsing testing database: %s\n\n", argv[2]);
-
-        for (int tsample = 0; tsample < NUMBER_OF_TESTING_SAMPLES; tsample++)
-        {
-
-            // extract a row from the testing matrix
-
-            test_sample = testing_data.row(tsample);
-
-            // run random forest prediction
-
-            result = rtree->predict(test_sample, Mat());
-
-            printf("Testing Sample %i -> class result (digit %d)\n", tsample, (int) result);
-
-            // if the prediction and the (true) testing classification are the same
-            // (N.B. openCV uses a floating point decision tree implementation!)
-
-            if (fabs(result - testing_classifications.at<float>(tsample, 0))
-                    >= FLT_EPSILON)
-            {
-                // if they differ more than floating point error => wrong class
-
-                wrong_class++;
-
-                false_positives[(int) result]++;
-
-            }
-            else
-            {
-
-                // otherwise correct
-
-                correct_class++;
-            }
-        }
-
-        printf( "\nResults on the testing database: %s\n"
-                "\tCorrect classification: %d (%g%%)\n"
-                "\tWrong classifications: %d (%g%%)\n",
-                argv[2],
-                correct_class, (double) correct_class*100/NUMBER_OF_TESTING_SAMPLES,
-                wrong_class, (double) wrong_class*100/NUMBER_OF_TESTING_SAMPLES);
-
-        for (int i = 0; i < NUMBER_OF_CLASSES; i++)
-        {
-            printf( "\tClass (digit %d) false postives   %d (%g%%)\n", i,
-                    false_positives[i],
-                    (double) false_positives[i]*100/NUMBER_OF_TESTING_SAMPLES);
-        }
-
-
-        // all matrix memory free by destructors
-
-
-        // all OK : main returns 0
-
-        return 0;
-    }
-
-    // not OK : main returns -1
-
-    return -1;
-}
-*/

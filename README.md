@@ -1,7 +1,7 @@
 Random Forest in Processing and OpenCV
 ======================================
 
-This repository has a bunch of examples that show how to implement the machine learning algorithm Random Forest in Processing using the OpenCV library for Processing.
+This repository has a (hopefully growing) number of examples that shows how to implement the machine learning algorithm Random Forest in Processing using the OpenCV library for Processing.
 
 Examples
 --------

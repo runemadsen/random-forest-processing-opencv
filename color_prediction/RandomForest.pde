@@ -38,7 +38,7 @@ class RandomForest
   {  
     Mat trainingTraits = new Mat(
       trainingDNA.size(),
-      trainingDNA.get(0).traits.size() - 1,
+      trainingDNA.get(0).getTraits().size() - 1,
       CvType.CV_32FC1
     );
   
@@ -53,9 +53,9 @@ class RandomForest
       DNA dna = trainingDNA.get(i);
 
       // add traits to trainingTraits
-      for(int j = 0; j < dna.traits.size(); j++)
+      for(int j = 0; j < dna.getTraits().size(); j++)
       {
-        trainingTraits.put(i, j, dna.traits.get(j));
+        trainingTraits.put(i, j, dna.getTraits().get(j));
       }
 
       // add answer to trainingAnswers
@@ -86,12 +86,12 @@ class RandomForest
   double getPrediction(DNA dna)
   {
     // create a mat for the prediction
-    Mat predictionTraits = new Mat(1, dna.traits.size(), CvType.CV_32FC1);
+    Mat predictionTraits = new Mat(1, dna.getTraits().size(), CvType.CV_32FC1);
 
     // get traits from dna
-    for(int i = 0; i < dna.traits.size(); i++)
+    for(int i = 0; i < dna.getTraits().size(); i++)
     {
-      predictionTraits.put(0, i, dna.traits.get(i));
+      predictionTraits.put(0, i, dna.getTraits().get(i));
     }
   
     return forest.predict(predictionTraits);

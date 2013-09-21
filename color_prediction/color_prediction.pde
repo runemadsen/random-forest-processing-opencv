@@ -14,12 +14,17 @@ ColorScheme curColorScheme;
 
 void setup()
 {
+  size(1300, 800);
+  colorMode(HSB, 1, 1, 1, 1);
+  background(1);
+  smooth();
   curColorScheme = getRandomColorScheme();
 }
 
 void draw()
 {
-  curColorScheme.draw();
+  background(1);
+  curColorScheme.display();
 }
 
 ColorScheme getRandomColorScheme()
@@ -34,6 +39,13 @@ ColorScheme getRandomColorScheme()
   
   ColorScheme c = schemes.getRandom();
   c.pickTraits();
-  c.objectifyTraits();
   return c;
+}
+
+void keyPressed()
+{
+  if(key == 'r')
+  {
+    curColorScheme = getRandomColorScheme(); 
+  }
 }

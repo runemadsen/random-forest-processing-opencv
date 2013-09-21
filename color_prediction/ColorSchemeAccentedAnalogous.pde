@@ -12,7 +12,7 @@ class ColorSchemeAccentedAnalogous extends ColorScheme
 	void pickAngleColors()
 	{
 		// pick angle 5º-90º away from base hue
-		angle = random(5f/360f, 90f/360f);
+		float angle = random(5f/360f, 90f/360f);
 
 		// set angle in DNA
 		dna.setTrait(ANGLE, angle);
@@ -29,10 +29,8 @@ class ColorSchemeAccentedAnalogous extends ColorScheme
 
 	void pickMoreColors()
 	{
-		disperseMethod = new DisperseMethod();
-
-		int numColors = int(random(2, 6));
-		createMoreColors(colors.get(0), numColors);
-		createMoreColors(colors.get(1), numColors);
+		pickMoreColorsDisperse();
+		pickMoreColorsFromColor(colors.get(0), 2, 6);
+		pickMoreColorsFromColor(colors.get(1), 2, 6);
 	}
 }

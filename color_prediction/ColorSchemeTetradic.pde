@@ -19,26 +19,23 @@ class ColorSchemeTetradic extends ColorScheme
 	void pickAngleColors()
 	{
 		// pick angle 5º-90º away from base hue
-		angle = random(5f/360f, 90f/360f);
+		float angle = random(5f/360f, 90f/360f);
+		dna.setTrait(ANGLE, angle);
 
 		// find base tetrad
-		angles.add(TColor.newHSV( colors.get(0).hue() + angle, 1, 1));
+		colors.add(TColor.newHSV( colors.get(0).hue() + angle, 1, 1));
 
 		// find complementary
-		angles.add(TColor.newHSV( colors.get(0).hue() + 0.5, 1, 1));
+		colors.add(TColor.newHSV( colors.get(0).hue() + 0.5, 1, 1));
 
 		// find complementary tetrad
-		angles.add(TColor.newHSV( colors.get(0).hue() + 0.5 + angle, 1, 1));
-
-		addColors(angles);
+		colors.add(TColor.newHSV( colors.get(0).hue() + 0.5 + angle, 1, 1));
 	}
 
 	void pickMoreColors()
 	{
-		disperseMethod = new DisperseMethod();
-
-		int numColors = int(random(2, 6));
-		createMoreColors(colors.get(0), numColors);
-		createMoreColors(colors.get(1), numColors);
+		pickMoreColorsDisperse();
+		pickMoreColorsFromColor(colors.get(0), 2, 6);
+		pickMoreColorsFromColor(colors.get(1), 2, 6);
 	}
 }

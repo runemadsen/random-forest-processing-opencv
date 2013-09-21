@@ -15,16 +15,16 @@ class RandomForest
   ArrayList<DNA> trainingDNA;
   CvRTrees forest;
 
-  void RandomForest()
+  void RandomForest(PApplet p)
   {
-    OpenCV opencv = new OpenCV(this, "test.jpg");
+    OpenCV opencv = new OpenCV(p, "test.jpg");
 
     trainingDNA = new ArrayList<DNA>();
   }
 
   // Use this function to add a new row of data to the set of training data. This is often used
   // multiple times before calling train(). Remember that the last column in the TableRow must
-  // be the correct answer.
+  // be the correct label.
 
   void addTrainingDNA(DNA newDNA)
   {
@@ -36,13 +36,15 @@ class RandomForest
 
   void train()
   {  
+    int numCols = trainingDNA.get(0).getTraits().size();
+
     Mat trainingTraits = new Mat(
       trainingDNA.size(),
-      trainingDNA.get(0).getTraits().size() - 1,
+      numCols - 1,
       CvType.CV_32FC1
     );
   
-    Mat trainingAnswers = new Mat(
+    Mat trainingLabels = new Mat(
       trainingDNA.size(),
       1,
       CvType.CV_32FC1
@@ -58,13 +60,13 @@ class RandomForest
         trainingTraits.put(i, j, dna.getTraits().get(j));
       }
 
-      // add answer to trainingAnswers
-      trainingAnswers.put(i, 0, dna.getAnswer());
+      // add label to trainingLabels
+      trainingLabels.put(i, 0, dna.getLabel());
     }
   
-    Mat varType = new Mat(trainingDNA.getColumnCount(), 1, CvType.CV_8U );
+    Mat varType = new Mat(numCols, 1, CvType.CV_8U );
     varType.setTo(new Scalar(0)); // 0 = CV_VAR_NUMERICAL.
-    varType.put(trainingDNA.getColumnCount() - 1, 0, 1); // 1 = CV_VAR_CATEGORICAL;
+    varType.put(numCols - 1, 0, 1); // 1 = CV_VAR_CATEGORICAL;
   
     CvRTParams params = new CvRTParams();
     params.set_max_depth(25);
@@ -78,7 +80,7 @@ class RandomForest
     params.set_term_crit(new TermCriteria(TermCriteria.MAX_ITER + TermCriteria.EPS, 100, 0.0f));
   
     forest = new CvRTrees();
-    forest.train(trainingTraits, 1, trainingAnswers, new Mat(), new Mat(), varType, new Mat(), params); // 1 = CV_ROW_SAMPLE
+    forest.train(trainingTraits, 1, trainingLabels, new Mat(), new Mat(), varType, new Mat(), params); // 1 = CV_ROW_SAMPLE
   }
 
   // Use this function to get a prediction, after having trained the algorithm.

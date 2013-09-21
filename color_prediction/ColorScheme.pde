@@ -6,28 +6,48 @@ abstract class ColorScheme
 	// Constants
   //----------------------------------------------------------------
 	
-	final static int HUE = 0;						// (0-1)
-  final static int ANGLE = 1;					// (0-1 degrees)
-  final static int MORECOLORS = 2;		// (0-1 mapping to whatever the random is for that color scheme)
-  final static int SATSCALE = 3;			// (0-1)
-  final static int BRISCALE = 4;			// (0-1)
-  final static int FEWERCOLORS = 5;		// (0-1 multiply to number of colors) 
+	final static int HUE = 0;												// (0-1)
+  final static int ANGLE = 1;											// (0-1 degrees)
+  final static int MORE_COLORS_SAT = 2;						// (0-1 mapping to however many random colors that scheme has)
+  final static int MORE_COLORS_BRI = 3;						// (0-1 mapping to however many random colors that scheme has)
+  final static int MORE_COLORS_SAT_LOW = 4;				// (0-1 multiplier)
+  final static int MORE_COLORS_BRI_LOW = 5;				// (0-1 multiplier)
+  final static int MORE_COLORS_SAT_EASING = 6;		// (0-1 map to num easings)
+  final static int MORE_COLORS_BRI_EASING = 7;		// (0-1 map to num easings)
+  final static int SCALE_SAT = 8;									// (0-1)
+  final static int SCALE_BRI = 9;									// (0-1)
+  final static int FEWER_COLORS = 10;							// (0-1 multiply to number of colors) 
 
 	// Main
   //----------------------------------------------------------------
 
+  void display()
+  {
+    for(int i = 0; i < colors.size(); i++)
+    {
+      TColor col = colors.get(i);
+      noStroke();
+      fill(col.hue(), col.saturation(), col.brightness());
+      rect(i * 110, 0, 100, 100);
+    }
+  }
+
   void pickTraits()
   {
-  	// DNA with defaults
   	dna = new DNA();
   	dna.setTrait(HUE, 0);
   	dna.setTrait(ANGLE, 0);
-  	dna.setTrait(MORECOLORS, 0);
-  	dna.setTrait(SATSCALE, 1);
-  	dna.setTrait(BRISCALE, 1);
-  	dna.setTrait(FEWERCOLORS, 1);
+  	dna.setTrait(MORE_COLORS_SAT, 0);
+  	dna.setTrait(MORE_COLORS_BRI, 0);
+  	dna.setTrait(MORE_COLORS_SAT_LOW, 1);
+  	dna.setTrait(MORE_COLORS_BRI_LOW, 1);
+  	dna.setTrait(MORE_COLORS_SAT_EASING, 0);
+  	dna.setTrait(MORE_COLORS_BRI_EASING, 0);
+  	dna.setTrait(SCALE_SAT, 1);
+  	dna.setTrait(SCALE_BRI, 1);
+  	dna.setTrait(FEWER_COLORS, 1);
 
-  	color = new ColorList();
+  	colors = new ColorList();
 
 		pickHue();
 
@@ -56,14 +76,14 @@ abstract class ColorScheme
 
 	void pickVariableSaturation()
 	{
-		dna.setTrait(SATSCALE, random(0.4, 1));
-		scaleSaturations(dna.getTrait(SATSCALE));
+		dna.setTrait(SCALE_SAT, random(0.4, 1));
+		scaleSaturations(dna.getTrait(SCALE_SAT));
 	}
 
 	void pickVariableBrightness()
 	{
-		dna.setTrait(BRISCALE, random(0.4, 1));
-		scaleBrightnesses(dna.getTrait(BRISCALE));
+		dna.setTrait(SCALE_BRI, random(0.4, 1));
+		scaleBrightnesses(dna.getTrait(SCALE_BRI));
 	}
 
 	void pickAngleColors() {}
@@ -73,44 +93,73 @@ abstract class ColorScheme
 	/* Helpers
 	--------------------------------------------------------- */
 
-	void addColors(ColorList newColors)
+	void pickMoreColorsDisperse()
 	{
-		for(int i = 0; i < newColors.size(); i++)
+		boolean moreSat = false;
+		boolean moreBri = false;
+		float which = random(1);
+
+		if(which < 0.33)				moreSat = true;
+		else if (which < 0.66)	moreBri = true;
+		else {
+			moreSat = true;
+			moreBri = true;
+		}
+
+		WeightedRandomSet<Float> lowChooser = new WeightedRandomSet<Float>();
+		lowChooser.add(0.2, 5);
+		lowChooser.add(0.3, 4);
+		lowChooser.add(0.5, 3);
+		lowChooser.add(0.6, 2);
+
+		float numColors = random(1);
+
+		if(moreSat)
 		{
-			colors.add(newColors.get(i));
+			dna.setTrait(MORE_COLORS_SAT, numColors);
+			dna.setTrait(MORE_COLORS_SAT_LOW, lowChooser.getRandom());
+		}
+
+		if(moreBri)
+		{
+			dna.setTrait(MORE_COLORS_BRI, numColors);
+			dna.setTrait(MORE_COLORS_BRI_LOW, lowChooser.getRandom());
 		}
 	}
 
-	void createMoreColors(TColor col, int numColors)
+	void pickMoreColorsFromColor(TColor col, int lowColors, int highColors)
 	{
+		int numColors = round(lowColors + (dna.getTrait(MORE_COLORS_SAT) * (highColors-lowColors)));
+		ColorList mores = new ColorList();
+
 		for(int i = 0; i < numColors; i++)
 		{
 			mores.add(new TColor(col));
 		}
 
-		if(disperseMethod.sat)
+		for(int i = 0; i < mores.size(); i++)
 		{
-			disperseColorList(ColorScheme.SATURATION, mores, disperseMethod.satLowest, disperseMethod.satEasing);
+			float lowest;
+			float val;
+
+			// if saturation
+			if(dna.getTrait(MORE_COLORS_SAT) > 0)
+			{
+				lowest = dna.getTrait(MORE_COLORS_SAT_LOW);
+				val = Ani.LINEAR.calcEasing(i, lowest, 1-lowest, mores.size());
+				mores.get(i).setSaturation(val);
+			}
+
+			// if brightness
+			if(dna.getTrait(MORE_COLORS_BRI) > 0)
+			{
+				lowest = dna.getTrait(MORE_COLORS_BRI_LOW);
+				val = Ani.LINEAR.calcEasing(i, lowest, 1-lowest, mores.size());
+				mores.get(i).setSaturation(val);
+			}
 		}
 
-		if(disperseMethod.bri)
-		{
-			disperseColorList(ColorScheme.BRIGHTNESS, mores, disperseMethod.briLowest, disperseMethod.briEasing);	
-		}
-		
 		addColors(mores);
-	}
-
-	ColorList disperseColorList(int satOrBri, ColorList colors, float lowest, Easing disperse)
-	{
-		for(int i = 0; i < colors.size(); i++)
-		{
-			float val  = disperse.calcEasing(i, lowest, 1-lowest, colors.size());
-			if(satOrBri == ColorScheme.SATURATION)	colors.get(i).setSaturation(val);
-			else 																		colors.get(i).setBrightness(val);
-		}
-
-		return colors;
 	}
 
 	void scaleSaturations(float s)
@@ -126,6 +175,14 @@ abstract class ColorScheme
 		for(int i = 0; i < colors.size(); i++)
 		{
 			colors.get(i).setBrightness( colors.get(i).brightness() * s);
+		}
+	}
+
+	void addColors(ColorList newColors)
+	{
+		for(int i = 0; i < newColors.size(); i++)
+		{
+			colors.add(newColors.get(i));
 		}
 	}
 }

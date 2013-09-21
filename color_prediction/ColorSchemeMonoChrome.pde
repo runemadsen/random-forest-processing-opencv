@@ -18,10 +18,8 @@ class ColorSchemeMonoChrome extends ColorScheme
 
 	void pickMoreColors()
 	{
-		disperseMethod = new DisperseMethod();
-
-		int numColors = int(random(3, 10));
-		createMoreColors(base, numColors);
+    pickMoreColorsDisperse();
+    pickMoreColorsFromColor(colors.get(0), 3, 10);
 	}
 
 }

@@ -3,6 +3,7 @@ class DNA
   // Properties
   //----------------------------------------------------------------
 
+  int label;
   FloatList traits = new FloatList(); 
 
   // Constructor
@@ -13,7 +14,7 @@ class DNA
   // Traits
   //----------------------------------------------------------------
 
-  ArrayList<Integer> setTrait(int index, float val)
+  void setTrait(int index, float val)
   {
     traits.set(index, val);
   }
@@ -23,8 +24,13 @@ class DNA
     return traits.get(index);
   }
 
-  ArrayList<Integer> getTraits()
+  FloatList getTraits()
   {
     return traits;
+  }
+
+  int getLabel()
+  {
+    return label;
   }
 }

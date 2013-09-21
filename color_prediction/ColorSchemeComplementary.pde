@@ -18,20 +18,16 @@ class ColorSchemeComplementary extends ColorScheme
 
 	void pickAngleColors()
 	{
-		angle = 0.5;
+		dna.setTrait(ANGLE, 0.5);
 
 		// find complementary
-		angles.add(TColor.newHSV( colors.get(0).hue() + 0.5, 1, 1));
-
-		addColors(angles);
+		colors.add(TColor.newHSV( colors.get(0).hue() + 0.5, 1, 1));
 	}
 
 	void pickMoreColors()
 	{
-		disperseMethod = new DisperseMethod();
-
-		int numColors = int(random(2, 6));
-		createMoreColors(colors.get(0), numColors);
-		createMoreColors(colors.get(1), numColors);
+		pickMoreColorsDisperse();
+		pickMoreColorsFromColor(colors.get(0), 2, 6);
+		pickMoreColorsFromColor(colors.get(1), 2, 6);
 	}
 }

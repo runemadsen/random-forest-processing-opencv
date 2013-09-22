@@ -19,8 +19,7 @@ class ColorSchemeAnalogous extends ColorScheme
 	void pickAngleColors()
 	{
 		float numColors = int(random(3, 6)); // this is unaccounted for in the DNA
-		float angle = random(5f, (180f/numColors)) / 360f;
-		dna.setTrait(ANGLE, angle);
+		angle = random(5f, (180f/numColors)) / 360f;
 
 		for(int i = 0; i < numColors; i++)
 		{
@@ -30,8 +29,8 @@ class ColorSchemeAnalogous extends ColorScheme
 
 	void pickMoreColors()
 	{
-		pickMoreColorsDisperse();
-		pickMoreColorsFromColor(colors.get(0), 2, 6);
-		pickMoreColorsFromColor(colors.get(1), 2, 6);
+		pickMoreColorsDisperse(2, 6);
+		pickMoreColorsFromColor(colors.get(0));
+		pickMoreColorsFromColor(colors.get(1));
 	}
 }

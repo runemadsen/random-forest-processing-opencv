@@ -1,5 +1,4 @@
 import gab.opencv.*;
-
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
@@ -8,89 +7,46 @@ import org.opencv.core.TermCriteria;
 import org.opencv.ml.CvRTParams;
 import org.opencv.ml.CvRTrees;
 
-// this is the basic_example wrapped in a class. See basic_example for commented source code.
-
-class RandomForest
-{
-  ArrayList<DNA> trainingDNA;
+class RandomForest {  
+  
   CvRTrees forest;
+  ArrayList<Sample> trainingSamples;
 
-  RandomForest()
-  {
-    trainingDNA = new ArrayList<DNA>();
+  RandomForest() {
+    trainingSamples = new ArrayList<Sample>();
   }
 
-  // Use this function to add a new row of data to the set of training data. This is often used
-  // multiple times before calling train(). Remember that the last column in the TableRow must
-  // be the correct label.
-
-  void addTrainingDNA(DNA newDNA)
+  void addTrainingSample(double[] featureVector, int label)
   {
-    trainingDNA.add(newDNA);
+    addTrainingSample(new Sample(featureVector, label));
   }
 
-  void saveTrainingDNA()
+  void addTrainingSample(Sample sample)
   {
-    Table table = new Table();
-
-    // add columns
-    for(int i = 0; i < trainingDNA.get(0).getTraits().size() + 1; i++)
-    {
-      table.addColumn();
-    }
-
-    for(int i = 0; i < trainingDNA.size(); i++)
-    {
-      DNA dna = trainingDNA.get(i);
-      TableRow row = table.addRow();
-
-      for(int j = 0; j < dna.getTraits().size(); j++)
-      {
-        row.setFloat(j, dna.getTraits().get(j));
-      }
-      row.setInt(dna.getTraits().size(), dna.getLabel());
-    }
-    //String prefix = year() + "_" + month()+ "_" + day() + "_" + hour() + "_" + minute() + "_" + second() + "_" + millis();
-    saveTable(table, "data/training.csv");
+    trainingSamples.add(sample);
   }
 
-  // Use this function after calling addTrainingDNA(), to actually train the algorithm with
-  // the added training data.
-
-  void train()
+  void train() 
   {  
-    int numCols = trainingDNA.get(0).getTraits().size();
+    Mat trainingMat = new Mat(trainingSamples.size(), trainingSamples.get(0).featureVector.length, CvType.CV_32FC1);
+    Mat labelMat = new Mat( trainingSamples.size(), 1, CvType.CV_32FC1);
 
-    Mat trainingTraits = new Mat(
-      trainingDNA.size(),
-      numCols,
-      CvType.CV_32FC1
-    );
-  
-    Mat trainingLabels = new Mat(
-      trainingDNA.size(),
-      1,
-      CvType.CV_32FC1
-    );
-  
-    for(int i = 0; i < trainingDNA.size(); i++)
-    {
-      DNA dna = trainingDNA.get(i);
+    // load samples into training and label mats. 
+    for (int i = 0; i < trainingSamples.size(); i++)
+    {  
+      Sample trainingSample = trainingSamples.get(i);
 
-      // add traits to trainingTraits
-      for(int j = 0; j < dna.getTraits().size(); j++)
-      {
-        trainingTraits.put(i, j, dna.getTraits().get(j));
+      for(int j = 0; j < trainingSample.featureVector.length; j++){              
+        trainingMat.put(i, j, trainingSample.featureVector[j]);
       }
-
-      // add label to trainingLabels
-      trainingLabels.put(i, 0, dna.getLabel());
+            
+      labelMat.put(i, 0, trainingSample.label);
     }
-  
-    Mat varType = new Mat(numCols + 1, 1, CvType.CV_8U );
+
+    Mat varType = new Mat(trainingMat.width()+1, 1, CvType.CV_8U );
     varType.setTo(new Scalar(0)); // 0 = CV_VAR_NUMERICAL.
-    varType.put(numCols, 0, 1); // 1 = CV_VAR_CATEGORICAL;
-  
+    varType.put(trainingMat.width(), 0, 1); // 1 = CV_VAR_CATEGORICAL;
+
     CvRTParams params = new CvRTParams();
     params.set_max_depth(25);
     params.set_min_sample_count(5);
@@ -101,25 +57,19 @@ class RandomForest
     params.set_calc_var_importance(false);
     params.set_nactive_vars(4);
     params.set_term_crit(new TermCriteria(TermCriteria.MAX_ITER + TermCriteria.EPS, 100, 0.0f));
-  
+
     forest = new CvRTrees();
-    forest.train(trainingTraits, 1, trainingLabels, new Mat(), new Mat(), varType, new Mat(), params); // 1 = CV_ROW_SAMPLE
+    forest.train(trainingMat, 1, labelMat, new Mat(), new Mat(), varType, new Mat(), params);
   }
 
-  // Use this function to get a prediction, after having trained the algorithm.
+  double predict(Sample sample)
+  {  
+    Mat predictionTraits = new Mat(1, sample.featureVector.length, CvType.CV_32FC1);
 
-  double getPrediction(DNA dna)
-  {
-    // create a mat for the prediction
-    Mat predictionTraits = new Mat(1, dna.getTraits().size(), CvType.CV_32FC1);
-
-    // get traits from dna
-    for(int i = 0; i < dna.getTraits().size(); i++)
-    {
-      predictionTraits.put(0, i, dna.getTraits().get(i));
+    for(int i = 0; i < sample.featureVector.length; i++){
+      predictionTraits.put(0, i, sample.featureVector[i]);
     }
-  
+
     return forest.predict(predictionTraits);
   }
-
 }

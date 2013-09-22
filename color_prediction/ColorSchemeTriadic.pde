@@ -19,8 +19,7 @@ class ColorSchemeTriadic extends ColorScheme
 	void pickAngleColors()
 	{
 		// pick angle 90º-175º away from base hue
-		float angle = random(90f/360f, 175f/360f);
-		dna.setTrait(ANGLE, angle);
+		angle = random(90f/360f, 175f/360f);
 
 		// find left color
 		colors.add(TColor.newHSV( colors.get(0).hue() - angle, 1, 1));
@@ -31,9 +30,9 @@ class ColorSchemeTriadic extends ColorScheme
 
 	void pickMoreColors()
 	{
-		pickMoreColorsDisperse();
-		pickMoreColorsFromColor(colors.get(0), 2, 4);
-		pickMoreColorsFromColor(colors.get(1), 2, 4);
-		pickMoreColorsFromColor(colors.get(2), 2, 4);
+		pickMoreColorsDisperse(2, 4);
+		pickMoreColorsFromColor(colors.get(0));
+		pickMoreColorsFromColor(colors.get(1));
+		pickMoreColorsFromColor(colors.get(2));
 	}
 }

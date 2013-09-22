@@ -13,6 +13,9 @@ boolean trainingMode = true;
 ColorScheme curColorScheme;
 RandomForest forest;
 
+// Setup and Draw
+//----------------------------------------------------------------
+
 void setup()
 {
   size(1000, 700);
@@ -23,7 +26,7 @@ void setup()
   OpenCV opencv = new OpenCV(this, "test.jpg");
 
   forest = new RandomForest();
-  curColorScheme = getRandomColorScheme();
+  newRandomScheme();
 }
 
 void draw()
@@ -32,10 +35,11 @@ void draw()
   curColorScheme.display();
 }
 
-ColorScheme getRandomColorScheme()
+// Get a Random ColorScheme
+//----------------------------------------------------------------
+
+void newRandomScheme()
 {
-  float ranScheme = random(1);
-  
   ColorScheme[] schemes = {
     new ColorSchemeMonoChrome(),
     new ColorSchemeTriadic(),
@@ -45,12 +49,42 @@ ColorScheme getRandomColorScheme()
     new ColorSchemeAccentedAnalogous()
   };
 
-  int index = floor(ranScheme * schemes.length);
-  
-  ColorScheme c = schemes[index];
-  c.pickTraits(ranScheme);
-  return c;
+  int schemeIndex = floor(random(schemes.length));
+  curColorScheme = schemes[schemeIndex];
+  curColorScheme.schemeType = schemeIndex;
+
+  curColorScheme.pickHue();
+  if(curColorScheme.hasAngleColors())          curColorScheme.pickAngleColors();
+  if(curColorScheme.hasMoreColors())           curColorScheme.pickMoreColors();
+  if(curColorScheme.hasVariableSaturation())   curColorScheme.pickVariableSaturation();
+  if(curColorScheme.hasVariableBrightness())   curColorScheme.pickVariableBrightness();
+  if(curColorScheme.hasFewerColors())          curColorScheme.pickFewerColors();
 }
+
+// Convert ColorScheme to Sample
+//----------------------------------------------------------------
+
+Sample colorSchemeToSample(ColorScheme scheme, int rating)
+{
+  double[] features = {
+    (double) scheme.schemeType,          // (int)    index number of color scheme
+    (double) scheme.hue,                 // (float)  0-1
+    (double) scheme.angle,               // (float)  0-1
+    (double) scheme.moreColorsSat,       // (int)    number of colors, 0 if none
+    (double) scheme.moreColorsBri,       // (int)    number of colors, 0 if none
+    (double) scheme.moreColorsSatLow,    // (float)  multiplier
+    (double) scheme.moreColorsBriLow,    // (float)  multiplier
+    (double) scheme.moreColorsSatEasing, // (int)    index number of easing
+    (double) scheme.moreColorsBriEasing, // (int)    index number of easing
+    (double) scheme.scaleSat,            // (float)  multiplier
+    (double) scheme.scaleBri             // (float)  multiplier
+  };
+
+  return new Sample(features, rating);
+}
+
+// Events
+//----------------------------------------------------------------
 
 void keyPressed()
 {
@@ -69,29 +103,21 @@ void keyPressed()
   // add rating
   if(keyCode >= 48 && keyCode <= 57)
   {
-    DNA dna = curColorScheme.dna;
     int rating = keyCode - 48;
+    Sample sample = colorSchemeToSample(curColorScheme, rating);
 
-    // add rating to color scheme
     if(trainingMode)
     {
-      dna.setLabel(rating);
-      forest.addTrainingDNA(dna);
+      forest.addTrainingSample(sample);
       println("Added Rating: " + key);
     }
-    // get prediction and show rating
-    else {
-      double prediction = forest.getPrediction(dna);
+    else
+    {
+      // not that rating in sample is not used here
+      double prediction = forest.predict(sample);
       println("Rating: " + key + ", Prediction: " + prediction);
     }
     
-    curColorScheme = getRandomColorScheme(); 
-  }
-
-  // save ratings
-  if(key == 's')
-  {
-    forest.saveTrainingDNA();
-    println("Saved training data");
+    newRandomScheme();
   }
 }

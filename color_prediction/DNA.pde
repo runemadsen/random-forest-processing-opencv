@@ -33,4 +33,9 @@ class DNA
   {
     return label;
   }
+
+  void setLabel(int newLabel)
+  {
+    label = newLabel;
+  }
 }

@@ -9,43 +9,89 @@ import de.looksgood.ani.easing.*;
 // Properties
 //----------------------------------------------------------------
 
-int mode = 0; // 0 = training, 1 = prediction
+boolean trainingMode = true;
 ColorScheme curColorScheme;
+RandomForest forest;
 
 void setup()
 {
-  size(1300, 800);
+  size(1000, 700);
   colorMode(HSB, 1, 1, 1, 1);
-  background(1);
+  background(0);
   smooth();
+
+  OpenCV opencv = new OpenCV(this, "test.jpg");
+
+  forest = new RandomForest();
   curColorScheme = getRandomColorScheme();
 }
 
 void draw()
 {
-  background(1);
+  background(0);
   curColorScheme.display();
 }
 
 ColorScheme getRandomColorScheme()
 {
-  WeightedRandomSet<ColorScheme> schemes = new WeightedRandomSet<ColorScheme>();
-  schemes.add(new ColorSchemeMonoChrome(), 10);
-  schemes.add(new ColorSchemeTriadic(), 10);
-  schemes.add(new ColorSchemeComplementary(), 10);
-  schemes.add(new ColorSchemeTetradic(), 10);
-  schemes.add(new ColorSchemeAnalogous(), 10);
-  schemes.add(new ColorSchemeAccentedAnalogous(), 10);
+  float ranScheme = random(1);
   
-  ColorScheme c = schemes.getRandom();
-  c.pickTraits();
+  ColorScheme[] schemes = {
+    new ColorSchemeMonoChrome(),
+    new ColorSchemeTriadic(),
+    new ColorSchemeComplementary(),
+    new ColorSchemeTetradic(),
+    new ColorSchemeAnalogous(),
+    new ColorSchemeAccentedAnalogous()
+  };
+
+  int index = floor(ranScheme * schemes.length);
+  
+  ColorScheme c = schemes[index];
+  c.pickTraits(ranScheme);
   return c;
 }
 
 void keyPressed()
 {
-  if(key == 'r')
+  // switch modes
+  if(key == 't')
   {
+    trainingMode = !trainingMode;
+    println("Switching to " + (trainingMode ? "Training Mode" : "Prediction Mode"));
+
+    if(!trainingMode)
+    {
+      forest.train();
+    }
+  }
+
+  // add rating
+  if(keyCode >= 48 && keyCode <= 57)
+  {
+    DNA dna = curColorScheme.dna;
+    int rating = keyCode - 48;
+
+    // add rating to color scheme
+    if(trainingMode)
+    {
+      dna.setLabel(rating);
+      forest.addTrainingDNA(dna);
+      println("Added Rating: " + key);
+    }
+    // get prediction and show rating
+    else {
+      double prediction = forest.getPrediction(dna);
+      println("Rating: " + key + ", Prediction: " + prediction);
+    }
+    
     curColorScheme = getRandomColorScheme(); 
+  }
+
+  // save ratings
+  if(key == 's')
+  {
+    forest.saveTrainingDNA();
+    println("Saved training data");
   }
 }

@@ -15,10 +15,8 @@ class RandomForest
   ArrayList<DNA> trainingDNA;
   CvRTrees forest;
 
-  void RandomForest(PApplet p)
+  RandomForest()
   {
-    OpenCV opencv = new OpenCV(p, "test.jpg");
-
     trainingDNA = new ArrayList<DNA>();
   }
 
@@ -31,6 +29,31 @@ class RandomForest
     trainingDNA.add(newDNA);
   }
 
+  void saveTrainingDNA()
+  {
+    Table table = new Table();
+
+    // add columns
+    for(int i = 0; i < trainingDNA.get(0).getTraits().size() + 1; i++)
+    {
+      table.addColumn();
+    }
+
+    for(int i = 0; i < trainingDNA.size(); i++)
+    {
+      DNA dna = trainingDNA.get(i);
+      TableRow row = table.addRow();
+
+      for(int j = 0; j < dna.getTraits().size(); j++)
+      {
+        row.setFloat(j, dna.getTraits().get(j));
+      }
+      row.setInt(dna.getTraits().size(), dna.getLabel());
+    }
+    //String prefix = year() + "_" + month()+ "_" + day() + "_" + hour() + "_" + minute() + "_" + second() + "_" + millis();
+    saveTable(table, "data/training.csv");
+  }
+
   // Use this function after calling addTrainingDNA(), to actually train the algorithm with
   // the added training data.
 
@@ -40,7 +63,7 @@ class RandomForest
 
     Mat trainingTraits = new Mat(
       trainingDNA.size(),
-      numCols - 1,
+      numCols,
       CvType.CV_32FC1
     );
   
@@ -64,9 +87,9 @@ class RandomForest
       trainingLabels.put(i, 0, dna.getLabel());
     }
   
-    Mat varType = new Mat(numCols, 1, CvType.CV_8U );
+    Mat varType = new Mat(numCols + 1, 1, CvType.CV_8U );
     varType.setTo(new Scalar(0)); // 0 = CV_VAR_NUMERICAL.
-    varType.put(numCols - 1, 0, 1); // 1 = CV_VAR_CATEGORICAL;
+    varType.put(numCols, 0, 1); // 1 = CV_VAR_CATEGORICAL;
   
     CvRTParams params = new CvRTParams();
     params.set_max_depth(25);

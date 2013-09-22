@@ -7,17 +7,18 @@ abstract class ColorScheme
 	// Constants
   //----------------------------------------------------------------
 	
-	final static int HUE = 0;												// (0-1)
-  final static int ANGLE = 1;											// (0-1 degrees)
-  final static int MORE_COLORS_SAT = 2;						// (0-1 mapping to however many random colors that scheme has)
-  final static int MORE_COLORS_BRI = 3;						// (0-1 mapping to however many random colors that scheme has)
-  final static int MORE_COLORS_SAT_LOW = 4;				// (0-1 multiplier)
-  final static int MORE_COLORS_BRI_LOW = 5;				// (0-1 multiplier)
-  final static int MORE_COLORS_SAT_EASING = 6;		// (0-1 map to num easings)
-  final static int MORE_COLORS_BRI_EASING = 7;		// (0-1 map to num easings)
-  final static int SCALE_SAT = 8;									// (0-1)
-  final static int SCALE_BRI = 9;									// (0-1)
-  final static int FEWER_COLORS = 10;							// (0-1 multiply to number of colors) 
+  final static int SCHEME = 0;                    // (0-1 mapping to number of color schemes)
+	final static int HUE = 1;												// (0-1)
+  final static int ANGLE = 2;											// (0-1 degrees)
+  final static int MORE_COLORS_SAT = 3;						// (0-1 mapping to however many random colors that scheme has)
+  final static int MORE_COLORS_BRI = 4;						// (0-1 mapping to however many random colors that scheme has)
+  final static int MORE_COLORS_SAT_LOW = 5;				// (0-1 multiplier)
+  final static int MORE_COLORS_BRI_LOW = 6;				// (0-1 multiplier)
+  final static int MORE_COLORS_SAT_EASING = 7;		// (0-1 map to num easings)
+  final static int MORE_COLORS_BRI_EASING = 8;		// (0-1 map to num easings)
+  final static int SCALE_SAT = 9;									// (0-1)
+  final static int SCALE_BRI = 10;								// (0-1)
+  final static int FEWER_COLORS = 11;							// (0-1 multiply to number of colors) 
 
 	// Main
   //----------------------------------------------------------------
@@ -33,10 +34,11 @@ abstract class ColorScheme
     }
   }
 
-  void pickTraits()
+  void pickTraits(float scheme)
   {
   	dna = new DNA();
-  	dna.setTrait(HUE, 0);
+  	dna.setTrait(SCHEME, scheme);
+    dna.setTrait(HUE, 0);
   	dna.setTrait(ANGLE, 0);
   	dna.setTrait(MORE_COLORS_SAT, 0);
   	dna.setTrait(MORE_COLORS_BRI, 0);
@@ -58,7 +60,7 @@ abstract class ColorScheme
 		if(hasVariableBrightness())		pickVariableBrightness();
 		if(hasFewerColors())					pickFewerColors();
   }
-  
+
 	// Base methods that can be overridden
   //----------------------------------------------------------------
 

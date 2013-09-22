@@ -2,6 +2,7 @@ abstract class ColorScheme
 {
 	DNA dna;
 	ColorList colors;
+  int rectSize = 200;
 
 	// Constants
   //----------------------------------------------------------------
@@ -28,7 +29,7 @@ abstract class ColorScheme
       TColor col = colors.get(i);
       noStroke();
       fill(col.hue(), col.saturation(), col.brightness());
-      rect(i * 110, 0, 100, 100);
+      rect((i % 3) * rectSize, ((i/3) % 3) * rectSize, rectSize, rectSize);
     }
   }
 

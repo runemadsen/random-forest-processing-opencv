@@ -17,4 +17,4 @@ How to use
 
 The software will start in traning mode. It will show you a random color scheme, and you need to press a rating from 0-9. After you have rated the color scheme it will generate a new one, and you can continue as long as you like.
 
-When you've trained the algorithm, you can press `t` to switch to prediction mode. This works in the same way where you rate the colors, but the algorithm will `println` your rating and compared to your its prediction.
+When you've trained the algorithm, you can press `t` to switch to prediction mode. This works in the same way where you rate the colors, but the algorithm will `println` your rating and compare it to its prediction.
